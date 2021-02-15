@@ -91,31 +91,6 @@ def run_LDA(train_data, train_digits, test_data, test_digits):
     plt.savefig(f'LDA_results/cm_test.png')
 
 
-def run_LDA_dim_reduction(train_data, train_digits, test_data, test_digits):
-    # feature scaling
-    sc = StandardScaler()
-    train_data_scaled = sc.fit_transform(train_data)
-    test_data_scaled = sc.transform(test_data)
-
-    # select the 20% pc that are the most significant
-    u, s, vh = LA.svd(train_data_scaled, full_matrices=True)
-    pc_num = len(s[s > np.percentile(s, 80)])
-    pca = PCA(n_components=pc_num)
-    pc_train = pca.fit_transform(train_data_scaled)
-    pc_test = pca.fit_transform(test_data_scaled)
-
-    lda = LDA(store_covariance=True)
-    lda.fit(pc_train, train_digits)
-
-    plot_confusion_matrix(lda, pc_train, train_digits)
-    plt.title(f"Train score: {round(lda.score(pc_train, train_digits), 2)}")
-    plt.savefig(f'LDA_results/cm_dim_reduction_train.png')
-
-    plot_confusion_matrix(lda, pc_test, test_digits)
-    plt.title(f"Test score: {round(lda.score(pc_test, test_digits), 2)}")
-    plt.savefig(f'LDA_results/cm_dim_reduction_test.png')
-
-
 def show_misclassified_images(test_digits, predicted_test, test_data):
     # predicted 3 actual 5
     misclassifications_indices = np.where((test_digits - predicted_test) == 2)
