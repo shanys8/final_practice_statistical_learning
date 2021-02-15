@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from PIL import Image
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import plot_confusion_matrix
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
@@ -9,16 +9,15 @@ from numpy import linalg as LA
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.svm import SVC
+from matplotlib import pyplot
 
 
 def show_image(vec):
-    # send train_data.iloc[0, :].values
     img = vec.reshape(16, 16)
-    plt.imshow(img, cmap='plasma')
+    plt.imshow(img, cmap=pyplot.get_cmap('gray'))
     plt.show()
 
 
@@ -30,17 +29,27 @@ def load_data():
     return train, test
 
 
-def print_covariance_diff_between_classes(train):
-    train_only_two = train.loc[train.iloc[:, 0] == 2].iloc[:, 1:-1]
-    train_only_three = train.loc[train.iloc[:, 0] == 3].iloc[:, 1:-1]
-    train_only_five = train.loc[train.iloc[:, 0] == 5].iloc[:, 1:-1]
+def print_covariance_diff_between_classes(train, test):
 
-    # each class's samples does not have the same covariance, therefore the LDA assumptions do not hold and
+    train_only_two = train.loc[train.iloc[:, 0] == 2]
+    train_only_two_data = train_only_two.iloc[:, 1:-1]
+    train_only_two_digits = train_only_two.iloc[:, 0]
+    train_only_three = train.loc[train.iloc[:, 0] == 3]
+    train_only_three_data = train_only_three.iloc[:, 1:-1]
+    train_only_three_digits = train_only_three.iloc[:, 0]
+    train_only_five = train.loc[train.iloc[:, 0] == 5]
+    train_only_five_data = train_only_five.iloc[:, 1:-1]
+    train_only_five_digits = train_only_five.iloc[:, 0]
+
+    plt.hist(test.iloc[:, 0].values)
+    plt.xticks([2, 3, 5])
+    plt.show()
+    # each class samples does not have the same covariance, therefore the LDA assumptions do not hold and
     # covariance that is used is sum_k prior_k * C_k
     print('Diff (norm) between classes covariance')
-    print(LA.norm(train_only_two.cov() - train_only_three.cov()))
-    print(LA.norm(train_only_two.cov() - train_only_five.cov()))
-    print(LA.norm(train_only_three.cov() - train_only_five.cov()))
+    print(LA.norm(train_only_two_data.cov() - train_only_three_data.cov()))
+    print(LA.norm(train_only_two_data.cov() - train_only_five_data.cov()))
+    print(LA.norm(train_only_three_data.cov() - train_only_five_data.cov()))
 
 
 def separate_data_labels(train, test):
@@ -54,7 +63,7 @@ def separate_data_labels(train, test):
 def run_KNN(train_data, train_digits, test_data, test_digits):
     k_values = [1, 5, 10, 20]
     for k in k_values:
-        neigh = KNeighborsClassifier(n_neighbors=k, p=2)
+        neigh = KNeighborsClassifier(n_neighbors=k, p=2, metric='minkowski')
         neigh.fit(train_data, train_digits)
 
         # train
@@ -136,7 +145,8 @@ def run_logistic_regression(train_data, train_digits, test_data, test_digits):
 
 
 def run_decision_tree(train_data, train_digits, test_data, test_digits):
-    classifier = DecisionTreeClassifier(criterion="gini", max_features="sqrt", class_weight="balanced")
+    classifier = DecisionTreeClassifier(criterion="gini", max_features="sqrt",
+                                        class_weight="balanced", min_impurity_decrease=0)
     # classifier = DecisionTreeClassifier(criterion="entropy", max_features="sqrt", class_weight="balanced")
     classifier.fit(train_data, train_digits)
     print(classification_report(test_digits, classifier.predict(test_data)))
@@ -152,19 +162,50 @@ def run_decision_tree(train_data, train_digits, test_data, test_digits):
     plt.savefig(f'DT_results/cm_test.png')
 
 
+def run_random_forest(train_data, train_digits, test_data, test_digits):
+    classifier = RandomForestClassifier(n_estimators=5000, criterion="gini", max_features="sqrt",
+                                        class_weight="balanced", min_impurity_decrease=0)
+    classifier.fit(train_data, train_digits)
+    print(classification_report(test_digits, classifier.predict(test_data)))
+
+    # train
+    plot_confusion_matrix(classifier, train_data, train_digits, cmap='plasma')
+    plt.title(f"Train score: {round(classifier.score(train_data, train_digits), 2)}")
+    plt.savefig(f'RF_results/cm_train.png')
+
+    # test
+    plot_confusion_matrix(classifier, test_data, test_digits, cmap='plasma')
+    plt.title(f"Test score: {round(classifier.score(test_data, test_digits), 2)}")
+    plt.savefig(f'RF_results/cm_test.png')
+
+
+def run_svm(train_data, train_digits, test_data, test_digits):
+    # svc = SVC(gamma='auto', class_weight='balanced', decision_function_shape='ovo')
+    svc = SVC(kernel='rbf', gamma='scale', C=1, class_weight='balanced', decision_function_shape='ovo')
+    svc.fit(train_data, train_digits)
+    # train
+    plot_confusion_matrix(svc, train_data, train_digits)
+    plt.title(f"Train score: {round(svc.score(train_data, train_digits), 2)}")
+    plt.savefig(f'SVC_results/cm_train.png')
+
+    # test
+    plot_confusion_matrix(svc, test_data, test_digits)
+    plt.title(f"Test score: {round(svc.score(test_data, test_digits), 2)}")
+    plt.savefig(f'SVC_results/cm_test.png')
+
+
 def main():
     train, test = load_data()
     train_data, train_digits, test_data, test_digits = separate_data_labels(train, test)
 
-    # run_KNN(train_data, train_digits, test_data, test_digits)
-    print_covariance_diff_between_classes(train)
-    # run_LDA(train_data, train_digits, test_data, test_digits)
-    # run_LDA_dim_reduction(train_data, train_digits, test_data, test_digits)
-    # run_logistic_regression(train_data, train_digits, test_data, test_digits)
-    # run_decision_tree(train_data, train_digits, test_data, test_digits)
-
-    # tree
-    # svm
+    run_KNN(train_data, train_digits, test_data, test_digits)
+    print_covariance_diff_between_classes(train, test)
+    run_LDA(train_data, train_digits, test_data, test_digits)
+    run_LDA_dim_reduction(train_data, train_digits, test_data, test_digits)
+    run_logistic_regression(train_data, train_digits, test_data, test_digits)
+    run_decision_tree(train_data, train_digits, test_data, test_digits)
+    run_random_forest(train_data, train_digits, test_data, test_digits)
+    run_svm(train_data, train_digits, test_data, test_digits)
 
     print('DONE')
 
