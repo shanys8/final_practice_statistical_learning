@@ -176,7 +176,6 @@ def main():
     run_KNN(train_data, train_digits, test_data, test_digits)
     print_covariance_diff_between_classes(train, test)
     run_LDA(train_data, train_digits, test_data, test_digits)
-    run_LDA_dim_reduction(train_data, train_digits, test_data, test_digits)
     run_logistic_regression(train_data, train_digits, test_data, test_digits)
     run_decision_tree(train_data, train_digits, test_data, test_digits)
     run_random_forest(train_data, train_digits, test_data, test_digits)
