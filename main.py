@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import sklearn.metrics as metrics
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import plot_confusion_matrix
